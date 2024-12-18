@@ -39,10 +39,14 @@ export default function Home() {
 
   async function fetchMarkets() {
     try {
-      if (!category) return;
+      if (!category || !location.coords) return;
+
+      const { latitude, longitude } = location.coords;
 
       const { data } = await api.get<MarketProps[]>(
-        "/markets/category/" + category
+        "/markets/category/" +
+          category +
+          `/?latitude=${latitude}&longitude=${longitude}&max_distance=50`
       );
 
       setMarkets(data);
@@ -72,7 +76,21 @@ export default function Home() {
 
   useEffect(() => {
     fetchMarkets();
-  }, [category]);
+  }, [category, location.coords]);
+
+  if (!location?.coords) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Loading />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#CECECE" }}>
@@ -81,70 +99,58 @@ export default function Home() {
         onSelect={setCategory}
         selected={category}
       />
-      {!location?.coords ? (
-        <View
-          style={{
-            position: "absolute",
-            top: "40%",
-            left: "46%",
-          }}
-        >
-          <Loading size={48} style={{ backgroundColor: "#CECECE" }} />
-        </View>
-      ) : (
-        <MapView
-          initialRegion={{
+      <MapView
+        initialRegion={{
+          latitude: location?.coords?.latitude,
+          longitude: location?.coords?.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        style={{ flex: 1 }}
+      >
+        <Marker
+          identifier="current"
+          coordinate={{
             latitude: location?.coords?.latitude,
             longitude: location?.coords?.longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
           }}
-          style={{ flex: 1 }}
-        >
+          image={require("@/assets/location.png")}
+        />
+        {markets.map((item) => (
           <Marker
-            identifier="current"
+            key={item.id}
+            identifier={item.id}
             coordinate={{
-              latitude: location?.coords?.latitude,
-              longitude: location?.coords?.longitude,
+              latitude: item.latitude,
+              longitude: item.longitude,
             }}
-            image={require("@/assets/location.png")}
-          />
-          {markets.map((item) => (
-            <Marker
-              key={item.id}
-              identifier={item.id}
-              coordinate={{
-                latitude: item.latitude,
-                longitude: item.longitude,
-              }}
-              image={require("@/assets/pin.png")}
-            >
-              <Callout onPress={() => router.navigate(`/market/${item.id}`)}>
-                <View>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      color: colors.gray[600],
-                      fontFamily: fontFamily.medium,
-                    }}
-                  >
-                    {item.name}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: colors.gray[600],
-                      fontFamily: fontFamily.regular,
-                    }}
-                  >
-                    {item.address}
-                  </Text>
-                </View>
-              </Callout>
-            </Marker>
-          ))}
-        </MapView>
-      )}
+            image={require("@/assets/pin.png")}
+          >
+            <Callout onPress={() => router.navigate(`/market/${item.id}`)}>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: colors.gray[600],
+                    fontFamily: fontFamily.medium,
+                  }}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: colors.gray[600],
+                    fontFamily: fontFamily.regular,
+                  }}
+                >
+                  {item.address}
+                </Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+      </MapView>
       <Places data={markets} />
     </View>
   );
